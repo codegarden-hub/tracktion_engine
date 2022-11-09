@@ -1,4 +1,3 @@
 [submodule "modules/juce"]
 	path = modules/juce
-url=https://github.com/WeAreROLI/JUCE.git
-	branch = develop
+	url = https://github.com/codegarden-hub/tracktion_engine.git
