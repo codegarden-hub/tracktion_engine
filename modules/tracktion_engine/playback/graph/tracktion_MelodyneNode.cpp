@@ -37,41 +37,55 @@ public:
         loopTimeRange = loopTimes;
     }
 
-    bool getCurrentPosition (CurrentPositionInfo& result) override
-    {
-        zerostruct (result);
-        result.frameRate = getFrameRate();
+	juce::Optional<juce::AudioPlayHead::PositionInfo> getPosition() const final
+	{
+		juce::AudioPlayHead::PositionInfo result;
 
-        auto& transport = plugin.edit.getTransport();
+		result.setFrameRate (getFrameRate());
 
-        result.isPlaying        = isPlaying;
-        result.isLooping        = isLooping;
-        result.isRecording      = transport.isRecording();
-        result.editOriginTime   = transport.getTimeWhenStarted();
+		const auto& transport = plugin.edit.getTransport();
 
-        if (result.isLooping)
-        {
-            loopStart->setTime (loopTimeRange.start);
-            result.ppqLoopStart = loopStart->getPPQTime();
+		result.setIsPlaying (isPlaying);
+		result.setIsLooping (isLooping);
+		result.setIsRecording (transport.isRecording());
+		result.setEditOriginTime (transport.getTimeWhenStarted());
 
-            loopEnd->setTime (loopTimeRange.end);
-            result.ppqLoopEnd   = loopEnd->getPPQTime();
-        }
+		if (isLooping)
+		{
+			loopStart->setTime (loopTimeRange.start);
+			loopEnd->setTime (loopTimeRange.end);
 
-        result.timeInSeconds    = time;
-        result.timeInSamples    = (int64_t) (time * plugin.getAudioPluginInstance()->getSampleRate());
+			juce::AudioPlayHead::LoopPoints loopPoints;
 
-        currentPos->setTime (time);
-        const auto& tempo = currentPos->getCurrentTempo();
-        result.bpm                  = tempo.bpm;
-        result.timeSigNumerator     = tempo.numerator;
-        result.timeSigDenominator   = tempo.denominator;
+			loopPoints.ppqStart = loopStart->getPPQTime();
+			loopPoints.ppqEnd   = loopEnd->getPPQTime();
 
-        result.ppqPositionOfLastBarStart = currentPos->getPPQTimeOfBarStart();
-        result.ppqPosition = std::max (result.ppqPositionOfLastBarStart, currentPos->getPPQTime());
+			result.setLoopPoints (loopPoints);
+		}
 
-        return true;
-    }
+		result.setTimeInSeconds (time);
+		result.setTimeInSamples (static_cast<int64_t>(time * plugin.getAudioPluginInstance()->getSampleRate()));
+
+		currentPos->setTime (time);
+
+		const auto& tempo = currentPos->getCurrentTempo();
+
+		result.setBpm (tempo.bpm);
+
+		juce::AudioPlayHead::TimeSignature timeSig;
+
+		timeSig.numerator   = tempo.numerator;
+		timeSig.denominator = tempo.denominator;
+
+		result.setTimeSignature (timeSig);
+
+		const auto lastBarStart = currentPos->getPPQTimeOfBarStart();
+
+		result.setPpqPositionOfLastBarStart (lastBarStart);
+		result.setPpqPosition (std::max (lastBarStart, currentPos->getPPQTime()));
+
+		return result;
+	}
 
 private:
     ExternalPlugin& plugin;
